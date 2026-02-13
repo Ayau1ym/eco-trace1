@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EcoTrace NIS | AI Green Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.4); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .animate-up { animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .type-btn.active { border: 3px solid #10b981; background-color: #ecfdf5; transform: scale(1.02); }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900">
+
+    <canvas id="hidden-canvas" class="hidden"></canvas>
+    <video id="webcam-view" playsinline muted autoplay class="hidden"></video>
+
+    <div id="auth-screen" class="fixed inset-0 bg-white z-[100] flex flex-col p-8 items-center justify-center">
+        <div class="w-full max-w-sm text-center">
+            <span class="text-6xl mb-4 block">🌱</span>
+            <h1 class="text-4xl font-extrabold text-emerald-600 mb-8 italic">EcoTrace NIS</h1>
+            <div class="space-y-4">
+                <input id="reg-name" type="text" placeholder="Твое имя" class="w-full p-5 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-emerald-500">
+                <select id="reg-shanyrak" class="w-full p-5 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-emerald-500">
+                    <option value="" disabled selected>Выбери Шанырак</option>
+                    <option>Ақмешіт</option><option>Алаш</option><option>Әйтеке Би</option>
+                    <option>Мұстафа Шоқай</option><option>Номад</option><option>Самұрық</option>
+                    <option>Айша Бибі</option><option>Бұқарбай Батыр</option><option>Жанкент</option>
+                    <option>Жібек Жолы</option><option>Күлтегін</option><option>Сыр Елі</option>
+                    <option>Хан Таңірі</option><option>Сұңқар</option>
+                </select>
+                <button onclick="core.register()" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all">Войти</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="hidden pb-32">
+        <header class="p-6 flex justify-between items-center sticky top-0 z-50 glass">
+            <div>
+                <h2 id="ui-name" class="text-xl font-bold italic text-slate-800">Эко-Герой</h2>
+                <p id="ui-shanyrak" class="text-[10px] text-emerald-600 font-black uppercase tracking-widest"></p>
+            </div>
+            <div class="bg-emerald-600 text-white px-5 py-2 rounded-2xl font-black shadow-lg">
+                <span id="ui-points">0</span> <small class="text-[10px] opacity-80 uppercase">pts</small>
+            </div>
+        </header>
+
+        <section class="p-6 grid grid-cols-2 gap-4">
+            <button onclick="core.runAI()" class="flex flex-col items-center p-6 bg-white rounded-[2rem] shadow-sm border border-slate-100 active:bg-emerald-50 transition-all">
+                <div class="text-4xl mb-2">📸</div>
+                <span class="font-bold text-sm">AI Сканер</span>
+                <span class="text-[8px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Hugging Face AI</span>
+            </button>
+            <button onclick="core.openModal()" class="flex flex-col items-center p-6 bg-white rounded-[2rem] shadow-sm border border-slate-100 active:bg-blue-50 transition-all">
+                <div class="text-4xl mb-2">⚖️</div>
+                <span class="font-bold text-sm">Ввод веса</span>
+                <span class="text-[8px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Manual entry</span>
+            </button>
+        </section>
+
+        <section class="px-6">
+            <div class="flex gap-6 mb-6 border-b border-slate-100">
+                <button onclick="core.switchTab('shanyrak')" id="tab-sh" class="text-xs font-black pb-3 border-b-2 border-emerald-600 text-emerald-600 transition-all">ШАНЫРАКИ</button>
+                <button onclick="core.switchTab('individual')" id="tab-ind" class="text-xs font-black pb-3 border-b-2 border-transparent text-slate-400 transition-all uppercase">Личный Топ</button>
+            </div>
+            
+            <div id="leaderboard" class="space-y-3">
+                </div>
+        </section>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 bg-slate-900/60 z-[200] backdrop-blur-md flex items-end">
+        <div class="bg-white w-full rounded-t-[3rem] p-8 animate-up shadow-2xl">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8"></div>
+            
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <button data-type="Пластик" data-rate="10" class="type-btn p-4 border-2 rounded-2xl flex flex-col items-center gap-1 transition-all">
+                    <span class="text-2xl">🧴</span><span class="text-[9px] font-black uppercase">Пластик</span>
+                </button>
+                <button data-type="Бумага" data-rate="5" class="type-btn p-4 border-2 rounded-2xl flex flex-col items-center gap-1 transition-all">
+                    <span class="text-2xl">📄</span><span class="text-[9px] font-black uppercase">Бумага</span>
+                </button>
+                <button data-type="Металл" data-rate="15" class="type-btn p-4 border-2 rounded-2xl flex flex-col items-center gap-1 transition-all">
+                    <span class="text-2xl">🥫</span><span class="text-[9px] font-black uppercase">Металл</span>
+                </button>
+            </div>
+
+            <div class="mb-8">
+                <label class="text-[10px] font-black text-slate-400 block text-center mb-2 uppercase tracking-widest">Примерный вес (КГ)</label>
+                <input id="input-weight" type="number" step="0.1" value="0.5" class="w-full text-center text-5xl font-black p-4 bg-slate-50 rounded-3xl outline-none focus:ring-4 ring-emerald-500/10">
+            </div>
+
+            <button id="btn-submit-main" onclick="core.submit()" class="w-full bg-emerald-600 text-white py-6 rounded-[2rem] font-bold text-xl shadow-xl shadow-emerald-100 active:scale-95 transition-all">
+                Подтвердить
+            </button>
+            <button onclick="core.closeModal()" class="w-full py-4 text-slate-400 font-bold mt-2">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        // --- КОНФИГ ---
+        const HF_TOKEN = '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'; 
+
+        const core = {
+            user: { name: "", shanyrak: "", points: 0 },
+            currentTab: 'shanyrak',
+            activeType: null,
+            activeRate: 0,
+
+            db_shanyraks: {
+                "Ақмешіт": 120, "Алаш": 340, "Әйтеке Би": 90, "Мұстафа Шоқай": 210,
+                "Номад": 500, "Самұрық": 450, "Айша Бибі": 130, "Бұқарбай Батыр": 80,
+                "Жанкент": 160, "Жібек Жолы": 200, "Күлтегін": 220, "Сыр Елі": 190,
+                "Хан Таңірі": 310, "Сұңқар": 270
+            },
+            db_users: [
+                { name: "Алихан М.", points: 850 },
+                { name: "Динара С.", points: 720 },
+                { name: "Нурислам К.", points: 640 }
+            ],
+
+            init() {
+                const saved = localStorage.getItem('eco_user_final');
+                if (saved) {
+                    this.user = JSON.parse(saved);
+                    this.showMain();
+                }
+                this.setupTypeButtons();
+            },
+
+            setupTypeButtons() {
+                document.querySelectorAll('.type-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        this.activeType = btn.dataset.type;
+                        this.activeRate = parseInt(btn.dataset.rate);
+                        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    }
+                });
+            },
+
+            register() {
+                const n = document.getElementById('reg-name').value;
+                const s = document.getElementById('reg-shanyrak').value;
+                if (!n || !s) return alert("Заполни данные!");
+                this.user.name = n;
+                this.user.shanyrak = s;
+                this.save();
+                this.showMain();
+            },
+
+            showMain() {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                this.updateUI();
+                this.renderLeaderboard();
+            },
+
+            updateUI() {
+                document.getElementById('ui-name').innerText = this.user.name;
+                document.getElementById('ui-shanyrak').innerText = this.user.shanyrak;
+                document.getElementById('ui-points').innerText = this.user.points;
+            },
+
+            save() { localStorage.setItem('eco_user_final', JSON.stringify(this.user)); },
+
+            openModal() { document.getElementById('modal').classList.remove('hidden'); },
+            closeModal() { document.getElementById('modal').classList.add('hidden'); },
+
+            switchTab(tab) {
+                this.currentTab = tab;
+                const activeCls = 'text-emerald-600 border-emerald-600';
+                const inactiveCls = 'text-slate-400 border-transparent';
+                
+                document.getElementById('tab-sh').className = `text-xs font-black pb-3 border-b-2 transition-all ${tab === 'shanyrak' ? activeCls : inactiveCls}`;
+                document.getElementById('tab-ind').className = `text-xs font-black pb-3 border-b-2 transition-all ${tab === 'individual' ? activeCls : inactiveCls}`;
+                
+                this.renderLeaderboard();
+            },
+
+            renderLeaderboard() {
+                const cont = document.getElementById('leaderboard');
+                cont.innerHTML = "";
+                
+                if (this.currentTab === 'shanyrak') {
+                    const sorted = Object.entries(this.db_shanyraks).sort((a,b) => b[1] - a[1]);
+                    sorted.forEach(([name, pts], i) => {
+                        const isUser = name === this.user.shanyrak;
+                        cont.innerHTML += `
+                            <div class="flex justify-between items-center p-5 bg-white rounded-2xl border ${isUser ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'} shadow-sm">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs font-black text-slate-300">#${i+1}</span>
+                                    <span class="font-bold text-slate-700">${name}</span>
+                                </div>
+                                <span class="font-black text-emerald-600 text-sm">${pts} PTS</span>
+                            </div>`;
+                    });
+                } else {
+                    const list = [...this.db_users, { name: this.user.name + " (Вы)", points: this.user.points }]
+                                 .sort((a,b) => b.points - a.points);
+                    list.forEach((u, i) => {
+                        cont.innerHTML += `
+                            <div class="flex justify-between items-center p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs font-black text-slate-300">#${i+1}</span>
+                                    <span class="font-bold text-slate-700">${u.name}</span>
+                                </div>
+                                <span class="font-black text-emerald-600 text-sm">${u.points} PTS</span>
+                            </div>`;
+                    });
+                }
+            },
+
+            async runAI() {
+                alert("Инициализация ИИ... Пожалуйста, наведите камеру.");
+                try {
+                    const video = document.getElementById('webcam-view');
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } 
+                    });
+                    video.srcObject = stream;
+                    await video.play();
+
+                    // Задержка для стабилизации кадра
+                    await new Promise(r => setTimeout(r, 1500));
+
+                    const canvas = document.getElementById('hidden-canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+                    stream.getTracks().forEach(t => t.stop());
+
+                    // Вызов Hugging Face
+                    const response = await fetch(
+                        "https://api-inference.huggingface.co/models/nlpconnect/vit-gpt2-image-captioning",
+                        {
+                            headers: { Authorization: `Bearer ${HF_TOKEN}` },
+                            method: "POST",
+                            body: blob,
+                        }
+                    );
+
+                    const result = await response.json();
+                    const description = result[0].generated_text.toLowerCase();
+                    this.processAI(description);
+
+                } catch (e) {
+                    alert("Ошибка: Убедитесь, что сайт открыт через HTTPS и камера разрешена.");
+                    console.error(e);
+                }
+            },
+
+            processAI(desc) {
+                let type = "Пластик"; // Дефолт
+                if (desc.includes('paper') || desc.includes('box') || desc.includes('cardboard')) type = "Бумага";
+                if (desc.includes('metal') || desc.includes('can') || desc.includes('tin') || desc.includes('bottle')) type = "Пластик"; // Модели часто путают, но бутылка - это пластик
+                if (desc.includes('aluminum') || desc.includes('steel')) type = "Металл";
+
+                this.activeType = type;
+                this.activeRate = (type === "Пластик") ? 10 : (type === "Бумага" ? 5 : 15);
+                
+                this.openModal();
+                const btn = document.querySelector(`[data-type="${type}"]`);
+                if(btn) btn.click();
+                
+                alert(`ИИ увидел: "${desc}". Выбрана категория: ${type}`);
+            },
+
+            submit() {
+                const w = parseFloat(document.getElementById('input-weight').value);
+                if (!this.activeType) return alert("Пожалуйста, выберите тип отходов!");
+                
+                const earned = Math.round(w * this.activeRate);
+                
+                // Обновляем личные баллы
+                this.user.points += earned;
+                // Обновляем баллы Шанырака (в памяти)
+                if (this.db_shanyraks[this.user.shanyrak] !== undefined) {
+                    this.db_shanyraks[this.user.shanyrak] += earned;
+                }
+                
+                this.save();
+                this.updateUI();
+                this.renderLeaderboard();
+                this.closeModal();
+                
+                // Эффект успеха
+                alert(`Отлично! +${earned} баллов зачислено в рейтинг ${this.user.shanyrak}`);
+            }
+        };
+
+        core.init();
+    </script>
+</body>
+</html>
